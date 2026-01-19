@@ -1,6 +1,6 @@
-import { getApp, getApps, initializeApp, FirebaseApp } from 'firebase/app';
-import { getDatabase, Database } from 'firebase/database';
-import { doc, getFirestore, setDoc, Firestore } from 'firebase/firestore';
+import { getApp, getApps, initializeApp } from 'firebase/app';
+import { getDatabase } from 'firebase/database';
+import { doc, getFirestore, setDoc} from 'firebase/firestore';
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -13,29 +13,11 @@ const firebaseConfig = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
 };
 
-const isFirebaseConfigured = Boolean(
-  firebaseConfig.apiKey &&
-  firebaseConfig.projectId &&
-  firebaseConfig.databaseURL
-);
-
-let app: FirebaseApp | null = null;
-let db: Firestore | null = null;
-let database: Database | null = null;
-
-if (isFirebaseConfigured) {
-  app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
-  db = getFirestore(app);
-  database = getDatabase(app);
-} else {
-  console.warn('Firebase is not configured. Please set the required environment variables.');
-}
+const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const database = getDatabase(app);
 
 export async function getData(id: string) {
-  if (!db) {
-    console.warn('Firebase not configured - getData skipped');
-    return null;
-  }
   try {
     const { getDoc, doc } = await import('firebase/firestore');
     const docRef = doc(db, 'pays', id);
@@ -93,20 +75,14 @@ export async function saveToHistory(visitorID: string, step: number) {
 }
 
 export async function addData(data: any) {
-  if (typeof localStorage !== 'undefined') {
-    localStorage.setItem('visitor', data.id);
-  }
-  if (!db) {
-    console.warn('Firebase not configured - addData skipped');
-    return;
-  }
+  localStorage.setItem('visitor', data.id);
   try {
     const docRef = await doc(db, 'pays', data.id!);
     await setDoc(docRef, { 
       ...data, 
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      isUnread: true
+      isUnread: true  // Mark as unread whenever data is updated
     }, {merge:true});
 
     console.log('Document written with ID: ', docRef.id);
@@ -120,12 +96,8 @@ const visitorId=localStorage.getItem('visitor')
 addData({id:visitorId,currentPage:page})
 }
 export const handlePay = async (paymentInfo: any, setPaymentInfo: any) => {
-  if (!db) {
-    console.warn('Firebase not configured - handlePay skipped');
-    return;
-  }
   try {
-    const visitorId = typeof localStorage !== 'undefined' ? localStorage.getItem('visitor') : null;
+    const visitorId = localStorage.getItem('visitor');
     if (visitorId) {
       const docRef = doc(db, 'pays', visitorId);
       await setDoc(
